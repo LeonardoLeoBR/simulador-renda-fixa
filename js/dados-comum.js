@@ -10,12 +10,14 @@
 (function (root) {
   'use strict';
 
-  var VERSAO_SITE = '0.13.0';
+  var VERSAO_SITE = '0.13.1';
   var REGRAS_VERIFICADAS = '2026-11-03';
 
   /* Séries de mercado. Unidade conferida na resposta da API em 29–30/10/2026. */
   var SERIES = [
-    { id: 'selic', nome: 'Selic meta', fonte: 'BCB SGS 432', codigo: 432, unidade: '% a.a.' },
+    // 432: um registro por dia até a próxima reunião do Copom; em 19/11/2026 os últimos 20 iam de 20/11 a 09/12 (todos
+    // no futuro) e a API recusa "ultimos" acima de 20. Por isso a 432 é pedida por intervalo: os 60 dias até hoje.
+    { id: 'selic', nome: 'Selic meta', fonte: 'BCB SGS 432', codigo: 432, unidade: '% a.a.', janelaDias: 60 },
     { id: 'selicOver', nome: 'Selic over (base 252)', fonte: 'BCB SGS 1178', codigo: 1178, unidade: '% a.a.' },
     { id: 'cdi', nome: 'CDI anualizado (base 252)', fonte: 'BCB SGS 4389', codigo: 4389, unidade: '% a.a.' },
     { id: 'ipca', nome: 'IPCA do mês', fonte: 'BCB SGS 433', codigo: 433, unidade: '% a.m.' },
@@ -41,6 +43,12 @@
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
+  /* Data de hoje mais "dias" (negativo = para trás), no fuso do navegador, como DD/MM/AAAA (formato da API do SGS). */
+  function dataBRde(dias) {
+    var d = new Date(); d.setDate(d.getDate() + dias);
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+  }
+
   var OLINDA = 'https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/';
 
   /* F11.1 (revisão independente): resposta que não é JSON vira "resposta inválida" (o texto de quem respondeu
@@ -58,7 +66,9 @@
     var saida = { series: {}, coletadoEm: new Date().toISOString(), origem: 'chamada direta às APIs do BCB', avisos: [] };
     await Promise.all(SERIES.map(async function (s) {
       try {
-        var r = await obter('https://api.bcb.gov.br/dados/serie/bcdata.sgs.' + s.codigo + '/dados/ultimos/20?formato=json', { cache: 'no-store' });
+        var base = 'https://api.bcb.gov.br/dados/serie/bcdata.sgs.' + s.codigo + '/dados';
+        var r = await obter(s.janelaDias ? base + '?formato=json&dataInicial=' + dataBRde(-s.janelaDias) + '&dataFinal=' + dataBRde(0)
+          : base + '/ultimos/20?formato=json', { cache: 'no-store' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         // A API não garante ordem cronológica (4389 veio decrescente) e a 432 traz datas de vigência futura:
         // ordena por data e usa o último registro com data <= hoje.
@@ -70,7 +80,7 @@
         })
           .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
         var validos = lista.filter(function (x) { return x.data <= hoje; });
-        if (!validos.length) throw new Error('nenhum registro até hoje nos últimos 20');
+        if (!validos.length) throw new Error(s.janelaDias ? 'nenhum registro nos últimos ' + s.janelaDias + ' dias' : 'nenhum registro até hoje nos últimos 20');
         var ult = validos[validos.length - 1];
         saida.series[s.id] = { nome: s.nome, valor: numeroEstrito(ult.valor), data: ult.data, unidade: s.unidade, fonte: s.fonte };
       } catch (e) { saida.avisos.push('falta ' + s.nome + ' (' + e.message + ')'); }
