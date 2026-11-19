@@ -1,4 +1,4 @@
-# Comparador de renda fixa
+# Simulador de renda fixa
 
 Simulador público: compara até 3 aplicações de renda fixa no mesmo valor, data e prazo, já descontados IR, IOF e custos.
 
