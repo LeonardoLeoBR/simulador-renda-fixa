@@ -10,7 +10,7 @@
 (function (root) {
   'use strict';
 
-  var VERSAO_SITE = '0.14.0';
+  var VERSAO_SITE = '0.14.1';
   var REGRAS_VERIFICADAS = '2026-11-03';
 
   /* Séries de mercado. Unidade conferida na resposta da API em 29–30/10/2026. */

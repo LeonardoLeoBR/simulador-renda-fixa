@@ -49,6 +49,7 @@
       aviso('Não consegui atualizar os dados de mercado (' + e.message + '). Preencha as premissas ou tente de novo em Atualizar.');
     }
     b.disabled = false; b.querySelector('span').textContent = 'Atualizar';
+    document.dispatchEvent(new CustomEvent('cf:mercado-fim'));  // v0.14.1: o comparador para de esperar
     if (achou) carimbo(textoCarimbo(mercadoAtual.coletadoEm), true);
     else carimbo(mercadoAtual ? textoCarimbo(mercadoAtual.coletadoEm) + ' (falhou agora)' : 'Sem taxas do Banco Central', true);
     rodape();

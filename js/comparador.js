@@ -81,7 +81,8 @@
     detAberto: false,    // "Detalhes" das caixas de produto (abre/fecha todas juntas)
     exemploIntacto: false, // F13.1 (tela simples): exemplo ainda não editado → mostra a linha roxa
     voltarId: null,      // F13.1: para onde "Voltar à minha simulação" leva, saindo da referência
-    premAberta: false    // F13.1: premissas e memória de cálculo à vista (na tela simples começam ocultas)
+    premAberta: false,   // F13.1: premissas e memória de cálculo à vista (na tela simples começam ocultas)
+    aguardandoMercado: false // F13.1 (v0.14.1): tela simples espera a 1ª resposta do BCB antes de mostrar o exemplo
   };
   /* F13.1 (decisões 66 e 67): na saída pública a tela é simples. Sem barra de cenários, sem nome de cenário,
      sem salvar: abre com o exemplo já preenchido e editável, com o mercado do dia. A completa não muda. */
@@ -464,8 +465,11 @@
     renderBarra(); renderAcao(); renderBanner(); renderLinks();
     var c = atual();
     var corpo = $('#cmp-corpo');
-    corpo.hidden = !c || E.comparando;
-    $('#cmp-vazio').hidden = !!c || E.comparando;
+    // Tela simples: até a 1ª resposta do BCB, mostra "Buscando as taxas…" em vez de um exemplo sem CDI (v0.14.1).
+    var esperando = SIMPLES && E.aguardandoMercado;
+    corpo.hidden = !c || E.comparando || esperando;
+    $('#cmp-vazio').hidden = SIMPLES || !!c || E.comparando;
+    if (SIMPLES) $('#cmp-buscando').hidden = !esperando;
     $('#cmp-comparacao').hidden = !E.comparando;
     if (E.comparando) { renderComparacao(); return; }
     if (!c) return;
@@ -682,6 +686,11 @@
     if (ok.length < 2) {
       box.classList.add('pendente');
       var fora = R.produtos.filter(function (x) { return !x.ok; });
+      if (SIMPLES && grupo(c) === 'referencia' && ok.length === 1) {
+        // A referência tem um produto só, para conferir a conta: sem pedir um segundo produto (campos travados; v0.14.1).
+        add(box, el('p', { class: 'v-titulo' }, ok[0].nome + ' termina com ' + reais(ok[0].r.final)), el('p', null, 'Um produto só, para conferir a conta com o cálculo manual e com a corretora.'));
+        return;
+      }
       add(box, el('p', { class: 'v-titulo' }, ok.length === 1 ? 'Só um produto completo: ' + ok[0].nome + ' termina com ' + reais(ok[0].r.final) : 'Nenhum produto completo ainda'),
         el('p', null, fora.length ? 'Para comparar, complete: ' + fora.map(function (x) { return x.nome + ' (' + x.faltas.join('; ') + ')'; }).join(' · ') + '.' : 'Adicione um segundo produto.'));
       return;
@@ -1224,6 +1233,12 @@
       lr.addEventListener('click', verReferencia); lp.addEventListener('click', alternarPremissas);
       add(links, lr, lp);
       var aw = $('#cmp-add-wrap'); aw.parentNode.insertBefore(links, aw.nextSibling);
+      var bz = el('div', { class: 'vazio', id: 'cmp-buscando', role: 'status' });
+      bz.appendChild(el('p', null, 'Buscando as taxas do Banco Central…'));
+      var vz = $('#cmp-vazio'); vz.parentNode.insertBefore(bz, vz);
+      E.aguardandoMercado = true;
+      // app-publico.js avisa ao fim de cada busca, com ou sem sucesso (sem sucesso, o exemplo abre e o aviso amarelo explica).
+      document.addEventListener('cf:mercado-fim', function () { if (E.aguardandoMercado) { E.aguardandoMercado = false; render(); } });
     }
     $('#cmp-sel').addEventListener('change', function (e) { if (e.target.value) { E.comparando = false; selecionar(e.target.value); } });
     $('#cmp-novo').addEventListener('click', function () { E.comparando = false; novo(); });
