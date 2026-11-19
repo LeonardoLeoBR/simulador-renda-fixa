@@ -480,3 +480,44 @@ ul.regras{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;
 td.forte{font-weight:700}
 td.rd-base{min-width:280px}
 #rendimentos td.acoes-linha{white-space:nowrap}
+
+/* ===== Simulador público: tela simples (F13.1, decisões 66 a 69; prévia aprovada em 19/11/2026) =====
+   Só a saída pública usa estas classes (publico.html e o modo simples de js/comparador.js). Tema claro travado lá (data-theme). */
+.atualizar-grupo{position:relative;display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:none}
+.carimbo{display:inline-flex;align-items:center;gap:5px;background:transparent;border:0;border-radius:4px;padding:2px 4px;min-height:24px;color:var(--marca-mudo);font:inherit;font-size:12px;cursor:help}
+.carimbo svg{width:13px;height:13px;flex:none}
+.carimbo.pisca{animation:carimbo-pisca 1.6s ease-out}
+@keyframes carimbo-pisca{0%{background:rgba(255,255,255,.3);color:var(--marca-txt)}100%{background:transparent}}
+.balao{position:absolute;top:100%;right:0;margin-top:6px;width:min(320px,calc(100vw - 32px));box-sizing:border-box;background:var(--sup);color:var(--txt);border:1px solid var(--borda);border-radius:var(--r-cartao);box-shadow:0 6px 20px rgba(3,24,89,.18);padding:12px 14px;font-size:13px;line-height:1.5;font-weight:400;text-align:left;z-index:20}
+.balao p{margin:0}
+.balao .balao-titulo{font-weight:700;color:var(--titulo);margin-bottom:6px}
+.balao .balao-nota{color:var(--mudo);margin-top:6px}
+main.simples #m-comparar>.pergunta,main.simples #m-comparar>h1,main.simples #m-comparar>.sub{display:none}
+.abertura{text-align:center;margin:28px 0 14px}
+.abertura h1{font-size:32px;margin:0 0 8px}
+.abertura .apoio{margin:0 auto;color:var(--txt-2);font-size:16px}
+.privacidade{display:flex;flex-direction:column;align-items:center;gap:8px;margin:0 0 16px}
+.priv-linha{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 8px;margin:0;font-size:14px;color:var(--txt-2)}
+.cadeado{width:16px;height:16px;flex:none;color:var(--ganho)}
+.priv-texto{max-width:760px;margin:0;background:var(--sup);border:1px solid var(--borda);border-radius:var(--r-cartao);padding:12px 16px;font-size:14px;color:var(--txt-2)}
+button.link{background:none;border:0;padding:4px 2px;min-height:24px;color:var(--link);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
+button.link:hover{color:var(--acao-hover)}
+.linha-exemplo{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 12px;margin:0 0 14px;color:var(--hml);font-size:14px}
+.linha-exemplo p{margin:0}
+.linha-exemplo .btn{color:var(--hml);border-color:var(--hml);background:var(--sup)}
+.veredito.em-branco{align-items:center;text-align:center;padding:28px 18px;font-size:15px}
+.veredito .falta-pequeno{font-size:13px;color:var(--mudo)}
+.links-simples{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 24px;margin:0 0 16px;font-size:14px}
+footer.prov .aviso-teste{flex-basis:100%;color:var(--txt);font-size:13px}
+@media (max-width:720px){
+  .barra-publica{flex-wrap:nowrap}
+  .barra-publica .marca{line-height:1.2}
+  .carimbo{font-size:11px}
+  .abertura{margin:20px 0 12px}
+  .abertura h1{font-size:23px}
+  .abertura .apoio{font-size:15px;line-height:1.45}
+  .priv-linha{font-size:13px}
+  .links-simples{flex-direction:column;align-items:center;gap:6px}
+}
+/* Rolagem até a referência ou às premissas não para embaixo do cabeçalho fixo (F13.1). */
+main.simples #cmp-banner,main.simples details.dobra{scroll-margin-top:96px}

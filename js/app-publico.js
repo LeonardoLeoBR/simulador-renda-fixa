@@ -1,6 +1,7 @@
 /*
- * Controle Financeiro — interface da saída PÚBLICA (simulador de renda fixa; F11).
- * Só o topo, o aviso de mercado e o rodapé de proveniência. O comparador fica em js/comparador.js, igual ao da completa.
+ * Controle Financeiro — interface da saída PÚBLICA (simulador de renda fixa; F11, tela simples na F13.1).
+ * Só o topo (Atualizar, horário e balão "De onde vêm as taxas"), a linha de privacidade, o aviso de mercado e o rodapé.
+ * O comparador fica em js/comparador.js, igual ao da completa (na pública ele entra no modo simples).
  * Não grava nada: sem senha, sem backup, sem abas. Busca os dados do BCB ao abrir (não há valor guardado para mostrar).
  */
 (function () {
@@ -14,6 +15,8 @@
   function rodape() {
     var r = $('#rodape'); r.textContent = '';
     var m = mercadoAtual;
+    // Decisão 69: a página avisa que está em teste.
+    r.appendChild(el('strong', { class: 'aviso-teste' }, 'Versão em teste: confira os valores com sua corretora antes de investir.'));
     r.appendChild(el('span', null, 'Dados de mercado: ' + (m && m.coletadoEm
       ? 'BCB (SGS 432, 1178, 4389, 433, 226 e Focus), coletado em ' + dataHoraBR(m.coletadoEm) + ' · ' + m.origem
       : 'ainda não carregados')));
@@ -23,17 +26,56 @@
     r.appendChild(el('span', null, 'Análise, não recomendação de investimento.'));
   }
 
+  /* Decisão 66: "Atualizado dd/mm/aaaa, hh:mm" abaixo do botão. É o retorno visível de cada clique. */
+  var tPisca;
+  function carimbo(texto, piscar) {
+    $('#carimbo-txt').textContent = texto;
+    var c = $('#carimbo'); c.classList.remove('pisca');
+    if (piscar) { void c.offsetWidth; c.classList.add('pisca'); clearTimeout(tPisca); tPisca = setTimeout(function () { c.classList.remove('pisca'); }, 1600); }
+  }
+  function textoCarimbo(iso) {
+    var d = new Date(iso);
+    return 'Atualizado ' + d.toLocaleDateString('pt-BR') + ', ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
   async function atualizar() {
     var b = $('#btn-atualizar'); b.disabled = true; b.querySelector('span').textContent = 'Atualizando…';
+    var achou = false;
     try {
       var m = await D.mercado.atualizar();
-      if (Object.keys(m.series).length) { mercadoAtual = m; document.dispatchEvent(new CustomEvent('cf:mercado', { detail: m })); }
-      aviso((m.avisos || []).join(' · ') || (Object.keys(m.series).length ? '' : 'Não consegui buscar os dados do Banco Central. Preencha CDI, Selic e IPCA nas premissas do cenário ou tente de novo em Atualizar.'));
+      if (Object.keys(m.series).length) { achou = true; mercadoAtual = m; document.dispatchEvent(new CustomEvent('cf:mercado', { detail: m })); }
+      aviso((m.avisos || []).join(' · ') || (achou ? '' : 'Não consegui buscar os dados do Banco Central. Preencha CDI, Selic e IPCA nas premissas ou tente de novo em Atualizar.'));
     } catch (e) {
-      aviso('Não consegui atualizar os dados de mercado (' + e.message + '). Preencha as premissas do cenário ou tente de novo em Atualizar.');
+      aviso('Não consegui atualizar os dados de mercado (' + e.message + '). Preencha as premissas ou tente de novo em Atualizar.');
     }
     b.disabled = false; b.querySelector('span').textContent = 'Atualizar';
+    if (achou) carimbo(textoCarimbo(mercadoAtual.coletadoEm), true);
+    else carimbo(mercadoAtual ? textoCarimbo(mercadoAtual.coletadoEm) + ' (falhou agora)' : 'Sem taxas do Banco Central', true);
     rodape();
+  }
+
+  /* Balão "De onde vêm as taxas": abre ao passar o mouse, ao focar pelo teclado e ao tocar; Esc fecha. */
+  function dica() {
+    var bt = $('#carimbo'), d = $('#dica-mercado'), fixo = false;
+    function mostrar(v) { d.hidden = !v; bt.setAttribute('aria-expanded', v ? 'true' : 'false'); }
+    bt.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') mostrar(true); });
+    bt.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse' && !fixo) mostrar(false); });
+    // Foco pelo teclado (:focus-visible); o toque também foca o botão, mas aí quem abre é o clique.
+    bt.addEventListener('focus', function () { if (bt.matches(':focus-visible')) mostrar(true); });
+    bt.addEventListener('blur', function () { fixo = false; mostrar(false); });
+    bt.addEventListener('click', function () { fixo = !fixo || d.hidden; mostrar(fixo); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !d.hidden) { fixo = false; mostrar(false); } });
+    document.addEventListener('pointerdown', function (e) { if (!d.hidden && !bt.contains(e.target) && !d.contains(e.target)) { fixo = false; mostrar(false); } });
+  }
+
+  /* Linha de privacidade: "Saiba mais" abre o texto completo. */
+  function privacidade() {
+    var b = $('#priv-mais'), t = $('#nota-publico');
+    b.addEventListener('click', function () {
+      t.hidden = !t.hidden;
+      b.setAttribute('aria-expanded', t.hidden ? 'false' : 'true');
+      b.textContent = t.hidden ? 'Saiba mais' : 'Fechar';
+    });
   }
 
   // Não abre dentro de outra página (clique disfarçado; a CSP por <meta> não cobre e o GitHub Pages não aceita cabeçalhos).
@@ -44,10 +86,8 @@
   }
 
   function iniciar() {
-    // A seção do comparador vem de app.html; aqui "salvar" vale só enquanto a página estiver aberta.
-    var sub = $('#cmp-sub-salvar');
-    if (sub) sub.textContent = 'Cada comparação é um cenário com nome, que fica guardado enquanto esta página estiver aberta.';
     $('#btn-atualizar').addEventListener('click', atualizar);
+    dica(); privacidade();
     rodape();
     atualizar();
   }

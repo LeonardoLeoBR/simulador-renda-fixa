@@ -78,8 +78,14 @@
     atualId: null,
     desfazer: null,      // {texto, fn}
     comparando: false, selecao: [],
-    detAberto: false     // "Detalhes" das caixas de produto (abre/fecha todas juntas)
+    detAberto: false,    // "Detalhes" das caixas de produto (abre/fecha todas juntas)
+    exemploIntacto: false, // F13.1 (tela simples): exemplo ainda não editado → mostra a linha roxa
+    voltarId: null,      // F13.1: para onde "Voltar à minha simulação" leva, saindo da referência
+    premAberta: false    // F13.1: premissas e memória de cálculo à vista (na tela simples começam ocultas)
   };
+  /* F13.1 (decisões 66 e 67): na saída pública a tela é simples. Sem barra de cenários, sem nome de cenário,
+     sem salvar: abre com o exemplo já preenchido e editável, com o mercado do dia. A completa não muda. */
+  var SIMPLES = D.AMBIENTE === 'publico';
   var uid = function () { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); };
   function copia(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -113,7 +119,11 @@
     var c = atual(); if (!c) return null;
     var g = grupo(c);
     if (g === 'referencia') return null;
-    if (g === 'exemplo') return c;
+    if (g === 'exemplo') {
+      // Tela simples: a primeira edição deixa de ser exemplo (some a linha roxa, sem redesenhar os campos).
+      if (SIMPLES && E.exemploIntacto) { E.exemploIntacto = false; var l = $('#cmp-linha-exemplo'); if (l) l.remove(); }
+      return c;
+    }
     if (!E.rascunhos[c.id]) E.rascunhos[c.id] = copia(c);
     return E.rascunhos[c.id];
   }
@@ -386,9 +396,20 @@
     try {
       var ex = await D.exemplos();
       E.exemplos = ex.cenarios.map(function (c) { c.exemplo = true; return c; });
+      if (SIMPLES) {
+        // Decisão 67: o exemplo usa o mercado do dia (BCB) e a data "se eu aplicar hoje". Só a referência fica com mercado fixo.
+        var d0 = proximoDiaUtil(D.hoje());
+        E.exemplos.forEach(function (c) { delete c.mercadoFixo; c.dataInicio = d0; });
+        E.exemploIntacto = true;
+        selecionar(E.exemplos[0].id);
+        return;
+      }
       selecionar(E.exemplos[0].id);
       status('Exemplos carregados: dados fictícios, não são salvos e saem com "Sair do exemplo".');
-    } catch (e) { status('Não consegui carregar os exemplos (' + e.message + ').'); }
+    } catch (e) {
+      if (SIMPLES) { limparTudo(); status('Não consegui carregar o exemplo (' + e.message + '). Preencha seus valores.'); return; }
+      status('Não consegui carregar os exemplos (' + e.message + ').');
+    }
   }
   function sairExemplo() {
     E.exemplos = null; E.comparando = false; E.selecao = [];
@@ -399,12 +420,48 @@
   }
   function abrirReferencia() { if (refs().length) selecionar(refs()[0].cenario.id); }
 
+  /* ---------- F13.1: ações da tela simples ---------- */
+  /* "Limpar tudo": tudo em branco (valor, aporte, data, prazo e produtos), na memória da página. */
+  function limparTudo() {
+    var c = cenarioNovo(); c.nome = 'Minha simulação'; c.dataInicio = null; c._novo = true;
+    E.rascunhos = {}; E.rascunhos[c.id] = c; E.exemplos = null; E.exemploIntacto = false;
+    selecionar(c.id);
+    var v = $('#cmp-valor'); if (v) v.focus();
+  }
+  /* "Como saber se a conta está certa?": mostra a referência (mercado fixo, conferida com a Rico) no lugar da simulação. */
+  function verReferencia() {
+    if (!refs().length) return;
+    if (grupo(atual()) !== 'referencia') E.voltarId = E.atualId;
+    abrirReferencia();
+    var s = $('#cmp-banner'); if (s) { s.scrollIntoView({ block: 'start' }); var b = $('#cmp-voltar'); if (b) b.focus(); }
+  }
+  function voltarSimulacao() {
+    var id = E.voltarId && achar(E.voltarId) ? E.voltarId : ((E.exemplos || [])[0] || {}).id;
+    if (!id) { limparTudo(); return; }
+    selecionar(id);
+    var b = $('#cmp-ver-ref'); if (b) b.focus();
+  }
+  function alternarPremissas() {
+    E.premAberta = !E.premAberta;
+    renderLinks();
+    if (E.premAberta) { $('#cmp-prem-det').open = true; $('#cmp-mem-det').open = true; $('#cmp-prem-det').scrollIntoView({ block: 'start' }); $('#cmp-prem-det > summary').focus(); }
+  }
+  function renderLinks() {
+    if (!SIMPLES) return;
+    var ref = grupo(atual()) === 'referencia';
+    $('#cmp-ver-ref').hidden = ref || !refs().length;
+    var p = $('#cmp-ver-prem');
+    p.textContent = E.premAberta ? 'Ocultar premissas e memória de cálculo' : 'Premissas e memória de cálculo';
+    p.setAttribute('aria-expanded', E.premAberta ? 'true' : 'false');
+    $('#cmp-prem-det').hidden = !E.premAberta; $('#cmp-mem-det').hidden = !E.premAberta;
+  }
+
   var tStatus;
   function status(t) { var s = $('#cmp-status'); if (!s) return; s.textContent = t || ''; clearTimeout(tStatus); if (t) tStatus = setTimeout(function () { s.textContent = ''; }, 9000); }
 
   /* ================= renderização ================= */
   function render() {
-    renderBarra(); renderAcao(); renderBanner();
+    renderBarra(); renderAcao(); renderBanner(); renderLinks();
     var c = atual();
     var corpo = $('#cmp-corpo');
     corpo.hidden = !c || E.comparando;
@@ -486,6 +543,18 @@
   function renderBanner() {
     var b = $('#cmp-banner'); b.textContent = ''; b.hidden = true; b.className = 'faixa';
     var c = atual();
+    if (SIMPLES) {
+      // Tela simples: o exemplo é avisado dentro do cartão (linha roxa); a referência tem o botão de volta.
+      if (c && c.referencia) {
+        b.hidden = false; b.classList.add('referencia');
+        add(b, el('strong', null, 'Como saber se a conta está certa.'),
+          el('span', null, ' Este é o cenário de referência: produtos reais com mercado fixo de ' + dataBR(c.mercadoFixo.coletadoEm) +
+            ', calculados também à mão e na calculadora da Rico. Os números abaixo têm de bater; não podem ser editados.'),
+          el('button', { class: 'btn', type: 'button', id: 'cmp-voltar' }, 'Voltar à minha simulação'));
+        $('#cmp-voltar').addEventListener('click', voltarSimulacao);
+      }
+      return;
+    }
     if (c && c.exemplo) {
       b.hidden = false; b.classList.add('exemplo');
       add(b, el('strong', null, 'Exemplo — dados fictícios.'),
@@ -504,6 +573,18 @@
     var box = $('#cmp-param'); box.textContent = '';
     var trava = grupo(c) === 'referencia';
     var cab = el('div', { class: 'cab-cenario' });
+    if (SIMPLES) {
+      // Sem título nem salvar. Exemplo intacto: linha roxa com "Limpar tudo"; editou, ela some (deixa de ser exemplo).
+      if (grupo(c) === 'exemplo' && E.exemploIntacto) {
+        var lx = el('div', { class: 'linha-exemplo', id: 'cmp-linha-exemplo' });
+        var tx = el('p');
+        add(tx, el('strong', null, 'Exemplo com taxas fictícias.'), ' Troque pelos seus valores.');
+        var bl = el('button', { class: 'btn', type: 'button', id: 'cmp-limpar' }, 'Limpar tudo');
+        bl.addEventListener('click', limparTudo);
+        add(lx, tx, bl);
+        box.appendChild(lx);
+      }
+    } else {
     add(cab, el('h2', { id: 'cmp-nome' }, c.nome));
     var acoes = el('div', { class: 'acoes' });
     if (grupo(c) === 'meu') {
@@ -519,6 +600,7 @@
     }
     cab.appendChild(acoes);
     box.appendChild(cab);
+    }
 
     var g = el('div', { class: 'campos' });
     g.appendChild(campo('cmp-valor', 'Valor inicial (R$)', c.valor == null ? '' : nf(c.valor, 2), 'ex.: 50.000,00', trava, function (v) { setC('valor', lerNumero(v, true)); }, true));
@@ -593,6 +675,7 @@
     var ok = R.ranking || [];
     if (R.faltasCenario.length) {
       box.classList.add('pendente');
+      if (SIMPLES) { box.classList.add('em-branco'); add(box, el('p', null, 'Preencha valor, data e prazo e escolha até 3 aplicações para ver qual rende mais.'), el('p', { class: 'falta-pequeno' }, 'Falta: ' + R.faltasCenario.join(', ') + '.')); return; }
       add(box, el('p', { class: 'v-titulo' }, 'Preencha o cenário para comparar'), el('p', null, 'Falta: ' + R.faltasCenario.join(', ') + '.'));
       return;
     }
@@ -1132,6 +1215,16 @@
 
   /* ================= início ================= */
   async function iniciar() {
+    if (SIMPLES) {
+      // Decisão 66: barra de cenários oculta; dois links embaixo dos produtos; premissas e memória só pelo link.
+      document.querySelector('#comparador .cmp-barra').hidden = true;
+      var links = el('div', { class: 'links-simples', id: 'cmp-links' });
+      var lr = el('button', { class: 'link', type: 'button', id: 'cmp-ver-ref' }, 'Como saber se a conta está certa?');
+      var lp = el('button', { class: 'link', type: 'button', id: 'cmp-ver-prem', 'aria-expanded': 'false', 'aria-controls': 'cmp-prem-det cmp-mem-det' }, 'Premissas e memória de cálculo');
+      lr.addEventListener('click', verReferencia); lp.addEventListener('click', alternarPremissas);
+      add(links, lr, lp);
+      var aw = $('#cmp-add-wrap'); aw.parentNode.insertBefore(links, aw.nextSibling);
+    }
     $('#cmp-sel').addEventListener('change', function (e) { if (e.target.value) { E.comparando = false; selecionar(e.target.value); } });
     $('#cmp-novo').addEventListener('click', function () { E.comparando = false; novo(); });
     $('#cmp-vazio-novo').addEventListener('click', novo);
