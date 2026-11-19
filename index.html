@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self' https://api.bcb.gov.br https://olinda.bcb.gov.br; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head><body>
+<title>Comparador de renda fixa</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="css/site.css">
+
+<header class="topo">
+  <div class="topo-marca gutter"><div class="wrap barra">
+      <div class="marca"><svg class="marca-icone" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="8" stroke="currentColor" stroke-width="2"/><path d="M8 21l5-5 4 3 7-8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.5 11H24v4.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Comparador de renda fixa</span></div>
+      <button id="btn-atualizar" class="btn prim" type="button" title="Atualizar dados de mercado">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+        <span>Atualizar</span>
+      </button>
+  </div></div>
+</header>
+
+<main class="gutter"><div class="wrap">
+  <div id="aviso-mercado" class="aviso" role="status" hidden></div>
+  <p class="sub" id="nota-publico">Simulador público: nada do que você digita é gravado neste navegador nem enviado a ninguém. Ao fechar ou recarregar a página, os cenários somem. Só os dados de mercado vêm do Banco Central.</p>
+
+<!-- comparador:inicio (F11: o build copia esta seção para a saída pública) -->
+  <section class="modulo" id="m-comparar" data-rota="comparar">
+    <p class="pergunta">Comparar renda fixa</p>
+    <h1>Qual aplicação deixa mais dinheiro líquido no prazo que eu escolher?</h1>
+    <p class="sub">Até 3 produtos no mesmo valor, data e prazo, já descontados IR, IOF e custos. <span id="cmp-sub-salvar">Cada comparação é um cenário com nome, que você salva e reabre.</span></p>
+
+    <div id="comparador">
+      <div class="cmp-barra" role="toolbar" aria-label="Cenários">
+        <label for="cmp-sel">Cenário</label>
+        <select id="cmp-sel"></select>
+        <button class="btn prim" type="button" id="cmp-novo">Novo</button>
+        <button class="btn" type="button" id="cmp-duplicar">Duplicar</button>
+        <button class="btn" type="button" id="cmp-renomear">Renomear</button>
+        <button class="btn" type="button" id="cmp-excluir">Excluir</button>
+        <span class="sep"></span>
+        <button class="btn" type="button" id="cmp-comparar" aria-pressed="false">Comparar cenários</button>
+        <button class="btn" type="button" id="cmp-exemplo">Carregar exemplo</button>
+        <button class="btn" type="button" id="cmp-ref">Cenário de referência</button>
+      </div>
+      <p id="cmp-status" class="status" role="status" aria-live="polite"></p>
+      <div id="cmp-acao" hidden></div>
+      <div id="cmp-banner" class="faixa" hidden></div>
+
+      <div id="cmp-vazio" class="vazio" hidden>
+        <p><strong>Você ainda não tem cenários.</strong> Crie um com seus produtos, ou veja como funciona com o exemplo (dados fictícios, não se misturam aos seus).</p>
+        <div class="acoes"><button class="btn prim" type="button" id="cmp-vazio-novo">Novo cenário</button><button class="btn" type="button" id="cmp-vazio-exemplo">Carregar exemplo</button></div>
+      </div>
+
+      <div id="cmp-corpo" hidden>
+        <div id="cmp-param" class="painel-cen"></div>
+        <div id="cmp-veredito" class="veredito" role="status" aria-live="polite"></div>
+        <div id="cmp-conferencia" class="conferencia" hidden></div>
+        <div id="cmp-tabela" class="produtos" role="region" aria-label="Produtos comparados"></div>
+        <div id="cmp-add-wrap" hidden></div>
+        <details class="dobra" id="cmp-prem-det">
+          <summary>Premissas <span id="cmp-prem-resumo" class="resumo-prem"></span></summary>
+          <div class="conteudo" id="cmp-premissas"></div>
+        </details>
+        <details class="dobra">
+          <summary>Memória de cálculo</summary>
+          <div class="conteudo" id="cmp-memoria"></div>
+        </details>
+      </div>
+      <div id="cmp-comparacao" hidden></div>
+    </div>
+  </section>
+<!-- comparador:fim -->
+</div></main>
+
+<footer class="prov gutter" aria-label="Proveniência dos dados"><div class="wrap" id="rodape"></div></footer>
+
+<script src="js/util.js"></script>
+<script src="js/dados-comum.js"></script>
+<script src="js/dados-publico.js"></script>
+<script src="js/motor-renda-fixa.js"></script>
+<script src="js/app-publico.js"></script>
+<script src="js/comparador.js"></script>
+</body></html>
